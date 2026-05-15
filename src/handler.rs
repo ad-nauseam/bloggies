@@ -24,6 +24,7 @@ impl EventHandler for Handler {
 
 		let result = match command.data.name.as_str() {
 			"blog" => match subcommand.name.as_str() {
+				"claim" => commands::blog::claim(&ctx, &command).await,
 				"create" => commands::blog::create(&ctx, &command).await,
 				"delete" => commands::blog::delete(&ctx, &command).await,
 				"rename" => commands::blog::rename(&ctx, &command, options).await,
