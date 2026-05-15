@@ -46,6 +46,26 @@ pub async fn create(ctx: &Context, interaction: &CommandInteraction) -> Result<(
 	Ok(())
 }
 
+pub async fn claim(ctx: &Context, interaction: &CommandInteraction) -> Result<()> {
+	let mut blogs = Blogs::new(ctx, interaction).await?;
+	let channel = blogs.channel(interaction.user.id)?;
+
+	channel.edit(ctx, EditChannel::new().permissions([
+		PermissionOverwrite {
+			allow: Permissions::SEND_MESSAGES,
+			deny: Permissions::empty(),
+			kind: PermissionOverwriteType::Member(interaction.user.id),
+		}
+	])).await?;
+
+	let message = CreateInteractionResponseMessage::new().content("Your blog channel has been reclaimed!");
+	let response = CreateInteractionResponse::Message(message);
+
+	interaction.create_response(ctx, response).await?;
+
+	Ok(())
+}
+
 pub async fn delete(ctx: &Context, interaction: &CommandInteraction) -> Result<()> {
 	let mut blogs = Blogs::new(ctx, interaction).await?;
 	let channel = blogs.channel(interaction.user.id)?;
