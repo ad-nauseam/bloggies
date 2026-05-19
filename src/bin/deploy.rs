@@ -13,6 +13,11 @@ async fn main() -> Result<()> {
 	let token = env::var("TOKEN")?;
 	let http = HttpBuilder::new(token).application_id(application_id).build();
 
+	let claim = CreateCommandOption::new(
+		CommandOptionType::SubCommand,
+		"claim",
+		"Fix permission issues on your blog",
+	);
 	let create = CreateCommandOption::new(CommandOptionType::SubCommand, "create", "Creates a new blog");
 	let delete = CreateCommandOption::new(CommandOptionType::SubCommand, "delete", "Deletes your blog");
 	let webhook = CreateCommandOption::new(CommandOptionType::SubCommand, "webhook", "Gets a webhook for your blog");
@@ -26,7 +31,7 @@ async fn main() -> Result<()> {
 
 	let blog = CreateCommand::new("blog")
 		.description("Commands related to blog management")
-		.set_options(vec![create, delete, rename, webhook]);
+		.set_options(vec![claim, create, delete, rename, webhook]);
 
 	let duration = CreateCommandOption::new(CommandOptionType::Integer, "duration", "The duration in hours")
 		.min_int_value(1)
