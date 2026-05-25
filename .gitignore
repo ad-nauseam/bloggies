@@ -1,5 +1,4 @@
 # Build
-Cargo.lock
 target
 .pre-commit-config.yaml
 
