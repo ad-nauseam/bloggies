@@ -75,45 +75,18 @@
 
       packages = forAllSystems (
         { pkgs }:
-        let
-          rustPlatform = pkgs.makeRustPlatform {
-            cargo = pkgs.rustToolchain;
-            rustc = pkgs.rustToolchain;
-          };
-        in
         {
-          default = rustPlatform.buildRustPackage {
-            pname = "bloggies";
-            version = "0.1.0";
-            src = ./.;
-            cargoLock.lockFile = ./Cargo.lock;
-          };
-
-          deploy = rustPlatform.buildRustPackage {
-            pname = "bloggies-deploy";
-            version = "0.1.0";
-            src = ./.;
-            cargoLock.lockFile = ./Cargo.lock;
-
-            cargoBuildFlags = [
-              "--bin"
-              "deploy"
-            ];
-
-            postInstall = ''
-              mv $out/bin/deploy $out/bin/bloggies-deploy
-            '';
-
-            cargoTestFlags = [
-              "--bin"
-              "deploy"
-            ];
-
-            meta = {
-              description = "Deployment binary for the Ad Nauseam blog bot";
-              mainProgram = "bloggies-deploy";
-            };
-          };
+          default =
+            (pkgs.makeRustPlatform {
+              cargo = pkgs.rustToolchain;
+              rustc = pkgs.rustToolchain;
+            }).buildRustPackage
+              {
+                pname = "bloggies";
+                version = "0.1.0";
+                src = ./.;
+                cargoLock.lockFile = ./Cargo.lock;
+              };
         }
       );
 
