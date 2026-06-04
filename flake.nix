@@ -1,98 +1,146 @@
 {
-	description = "Ad Nauseam blog bot";
+  description = "Ad Nauseam blog bot";
 
-	inputs = {
-		nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-		hooks = {
-			url = "github:cachix/git-hooks.nix";
-			inputs.nixpkgs.follows = "nixpkgs";
-		};
-		fenix = {
-			url = "github:nix-community/fenix";
-			inputs.nixpkgs.follows = "nixpkgs";
-		};
-	};
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
-	outputs = {
-		self,
-		hooks,
-		fenix,
-		nixpkgs,
-		...
-	}: let
-		systems = ["aarch64-linux" "x86_64-linux"];
-		forAllSystems = f:
-			nixpkgs.lib.genAttrs systems (system:
-					f {
-						pkgs =
-							import nixpkgs {
-								inherit system;
-								overlays = [self.overlays.default];
-							};
-					});
-	in {
-		overlays.default = final: prev: {
-			rustToolchain = with fenix.packages.${prev.stdenv.hostPlatform.system};
-				combine (
-					(with stable; [clippy rustc cargo rust-src rust-analyzer])
-					++ [default.rustfmt]
-				);
-		};
+  outputs =
+    {
+      self,
+      hooks,
+      fenix,
+      nixpkgs,
+      ...
+    }:
+    let
+      systems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
+      forAllSystems =
+        f:
+        nixpkgs.lib.genAttrs systems (
+          system:
+          f {
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [ self.overlays.default ];
+            };
+          }
+        );
+    in
+    {
+      overlays.default = final: prev: {
+        rustToolchain =
+          with fenix.packages.${prev.stdenv.hostPlatform.system};
+          combine (
+            (with stable; [
+              clippy
+              rustc
+              cargo
+              rust-src
+              rust-analyzer
+            ])
+            ++ [ default.rustfmt ]
+          );
+      };
 
-		checks =
-			forAllSystems ({pkgs}: {
-					pre-commit-check =
-						hooks.lib.${pkgs.system}.run {
-							src = ./.;
-							hooks = {
-								clippy = {
-									enable = true;
-									package = fenix.packages.${pkgs.system}.stable.clippy;
-								};
-								rustfmt = {
-									enable = true;
-									package = fenix.packages.${pkgs.system}.default.rustfmt;
-								};
-							};
-						};
-				});
+      checks = forAllSystems (
+        { pkgs }:
+        {
+          pre-commit-check = hooks.lib.${pkgs.system}.run {
+            src = ./.;
+            hooks = {
+              clippy = {
+                enable = true;
+                package = fenix.packages.${pkgs.system}.stable.clippy;
+              };
+              rustfmt = {
+                enable = true;
+                package = fenix.packages.${pkgs.system}.default.rustfmt;
+              };
+            };
+          };
+        }
+      );
 
-		packages =
-			forAllSystems ({pkgs}: {
-					default =
-						(pkgs.makeRustPlatform {
-								cargo = pkgs.rustToolchain;
-								rustc = pkgs.rustToolchain;
-							}).buildRustPackage {
-							pname = "bloggies";
-							version = "0.1.0";
-							src = ./.;
-							cargoLock.lockFile = ./Cargo.lock;
-						};
-				});
+      packages = forAllSystems (
+        { pkgs }:
+        let
+          rustPlatform = pkgs.makeRustPlatform {
+            cargo = pkgs.rustToolchain;
+            rustc = pkgs.rustToolchain;
+          };
+        in
+        {
+          default = rustPlatform.buildRustPackage {
+            pname = "bloggies";
+            version = "0.1.0";
+            src = ./.;
+            cargoLock.lockFile = ./Cargo.lock;
+          };
 
-		devShells =
-			forAllSystems ({pkgs}: let
-					check = self.checks.${pkgs.system}.pre-commit-check;
-				in {
-					default =
-						pkgs.mkShell {
-							inherit (check) shellHook;
-							buildInputs = check.enabledPackages;
+          deploy = rustPlatform.buildRustPackage {
+            pname = "bloggies-deploy";
+            version = "0.1.0";
+            src = ./.;
+            cargoLock.lockFile = ./Cargo.lock;
 
-							packages = with pkgs; [
-								rustToolchain
-								pkg-config
-								cargo-deny
-								cargo-edit
-								cargo-semver-checks
-								cargo-watch
-								cargo-show-asm
-								bacon
-							];
+            cargoBuildFlags = [
+              "--bin"
+              "deploy"
+            ];
 
-							env.RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
-						};
-				});
-	};
+            postInstall = ''
+              mv $out/bin/deploy $out/bin/bloggies-deploy
+            '';
+
+            cargoTestFlags = [
+              "--bin"
+              "deploy"
+            ];
+
+            meta = {
+              description = "Deployment binary for the Ad Nauseam blog bot";
+              mainProgram = "bloggies-deploy";
+            };
+          };
+        }
+      );
+
+      devShells = forAllSystems (
+        { pkgs }:
+        let
+          check = self.checks.${pkgs.system}.pre-commit-check;
+        in
+        {
+          default = pkgs.mkShell {
+            inherit (check) shellHook;
+            buildInputs = check.enabledPackages;
+
+            packages = with pkgs; [
+              rustToolchain
+              pkg-config
+              cargo-deny
+              cargo-edit
+              cargo-semver-checks
+              cargo-watch
+              cargo-show-asm
+              bacon
+            ];
+
+            env.RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+          };
+        }
+      );
+    };
 }
